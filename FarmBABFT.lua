@@ -4,10 +4,12 @@
 ]]
 
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/miroeramaa/TurtleLib/main/TurtleUiLib.lua"))()
-local w = library:Window("BABFT Farm")
+local farmWindow = library:Window("BABFT Farm")
+local optWindow = library:Window("Optimization")
 
 local plr = game:GetService("Players").LocalPlayer
 local players = game:GetService("Players")
+local lighting = game:GetService("Lighting")
 local credits = "by @HackerFurry | t.me/HackerCoffee"
 
 -- ========== ПЕРЕМЕННЫЕ ==========
@@ -91,42 +93,136 @@ local function startFarm(type)
     task.spawn(runFarm)
 end
 
--- ========== FPS COUNTER ==========
+-- ========== НАСТРОЙКИ ==========
+-- FullBright
+local fullbrightActive = false
+local originalBrightness = lighting.Brightness
+local originalAmbient = lighting.Ambient
+local originalOutdoorAmbient = lighting.OutdoorAmbient
+
+local function setFullBright(enable)
+    if enable then
+        lighting.Brightness = 2
+        lighting.Ambient = Color3.new(1, 1, 1)
+        lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        lighting.ClockTime = 12
+    else
+        lighting.Brightness = originalBrightness
+        lighting.Ambient = originalAmbient
+        lighting.OutdoorAmbient = originalOutdoorAmbient
+    end
+end
+
+-- Буст FPS
+local boostFPSActive = false
+
+local function setBoostFPS(enable)
+    if enable then
+        lighting.GlobalShadows = false
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                v.Enabled = false
+            end
+            if v:IsA("Decal") then
+                v.Transparency = 1
+            end
+        end
+        if workspace:FindFirstChild("Terrain") then
+            workspace.Terrain.WaterWaveSize = 0
+            workspace.Terrain.WaterReflectance = 0
+            workspace.Terrain.WaterRefraction = 0
+        end
+    else
+        lighting.GlobalShadows = true
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                v.Enabled = true
+            end
+            if v:IsA("Decal") then
+                v.Transparency = 0
+            end
+        end
+        if workspace:FindFirstChild("Terrain") then
+            workspace.Terrain.WaterWaveSize = 0.5
+            workspace.Terrain.WaterReflectance = 0.5
+            workspace.Terrain.WaterRefraction = 0.5
+        end
+    end
+end
+
+-- Анти-АФК
+local antiAFKActive = false
+local afkConnection = nil
+local vu = game:GetService("VirtualUser")
+
+local function setupAntiAFK()
+    if afkConnection then afkConnection:Disconnect() end
+    afkConnection = plr.Idled:Connect(function()
+        if antiAFKActive and vu then
+            vu:CaptureController()
+            vu:ClickButton2(Vector2.new())
+        end
+    end)
+end
+
+local function toggleAntiAFK(value)
+    antiAFKActive = value
+    if value then
+        setupAntiAFK()
+    end
+end
+
+-- FPS Counter
 local function loadFPS()
     loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-FPS-Counter-V1dot6dot1-115754"))()
 end
 
--- ========== GUI ==========
-w:Label("=== FARM CONTROL ===")
+-- ========== FARM WINDOW ==========
+farmWindow:Label("=== FARM CONTROL ===")
 
-w:Button("▶️ Start Gold Farm", function()
+farmWindow:Button("▶️ Start Gold Farm", function()
     if farmActive then farmActive = false; task.wait(0.5) end
     startFarm("gold")
 end)
 
-w:Button("🧱 Start Block Farm", function()
+farmWindow:Button("🧱 Start Block Farm", function()
     if farmActive then farmActive = false; task.wait(0.5) end
     startFarm("block")
 end)
 
-w:Slider("Fly Speed", 100, 500, farmSpeed, function(value)
+farmWindow:Slider("Fly Speed", 100, 500, farmSpeed, function(value)
     farmSpeed = value
 end)
 
-w:Label("Farms Completed: " .. farmCounter)
+farmWindow:Label("Farms Completed: " .. farmCounter)
 
-w:Label("=== OTHER ===")
+farmWindow:Label(credits, Color3.fromRGB(127, 143, 166))
 
-w:Button("📊 FPS Counter", function()
+-- ========== OPTIMIZATION WINDOW ==========
+optWindow:Label("=== OPTIMIZATION ===")
+
+optWindow:Toggle("🚀 Boost FPS", false, function(value)
+    setBoostFPS(value)
+end)
+
+optWindow:Toggle("☀️ FullBright", false, function(value)
+    setFullBright(value)
+end)
+
+optWindow:Toggle("🛡️ Anti-AFK", false, function(value)
+    toggleAntiAFK(value)
+end)
+
+optWindow:Button("📊 FPS Counter", function()
     loadFPS()
 end)
 
-w:Label(credits, Color3.fromRGB(127, 143, 166))
+optWindow:Label(credits, Color3.fromRGB(127, 143, 166))
 
 -- Обновление счётчика
 task.spawn(function()
     while true do
-        for _, child in pairs(w:GetChildren()) do
+        for _, child in pairs(farmWindow:GetChildren()) do
             if child:IsA("Label") and child.Text:match("Farms Completed") then
                 child.Text = "Farms Completed: " .. farmCounter
             end
@@ -135,4 +231,19 @@ task.spawn(function()
     end
 end)
 
-print("BABFT Farm loaded.")
+-- Горячая клавиша для скрытия UI (LeftControl)
+local uis = game:GetService("UserInputService")
+local uiVisible = true
+uis.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.LeftControl then
+        uiVisible = not uiVisible
+        if uiVisible then
+            library:Show()
+        else
+            library:Hide()
+        end
+    end
+end)
+
+print("BABFT Farm loaded. Press LeftControl to hide UI.")
