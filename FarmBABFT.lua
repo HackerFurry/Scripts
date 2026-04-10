@@ -17,6 +17,16 @@ local farmActive = false
 local farmType = nil
 local farmCounter = 0
 local farmSpeed = 300
+local autoRestart = true
+
+-- СТАТИСТИКА (ТОЧНЫЕ ЗНАЧЕНИЯ)
+local goldCollected = 0
+local blocksCollected = 0
+local goldPerCycle = 122  -- 122 золота за 1 цикл фарма
+local blocksPerCycle = 200  -- блоков за цикл (если нужно, измени)
+local sessionStartTime = nil
+local goldPerHour = 0
+local blocksPerHour = 0
 
 -- ========== ФУНКЦИИ ФАРМА ==========
 local function flyTo(targetPos, speed)
@@ -73,13 +83,41 @@ local function blockFarmCycle(speed)
     return true
 end
 
+local function updateStats(cycleType)
+    local now = os.time()
+    if not sessionStartTime then
+        sessionStartTime = now
+    end
+    
+    if cycleType == "gold" then
+        goldCollected = goldCollected + goldPerCycle
+    elseif cycleType == "block" then
+        blocksCollected = blocksCollected + blocksPerCycle
+    end
+    
+    local elapsedHours = (now - sessionStartTime) / 3600
+    if elapsedHours > 0 then
+        goldPerHour = math.floor(goldCollected / elapsedHours)
+        blocksPerHour = math.floor(blocksCollected / elapsedHours)
+    end
+end
+
+local function formatTime(seconds)
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
+
 local function runFarm()
     while farmActive do
         local speed = farmSpeed
         if farmType == "gold" then
             goldFarmCycle(speed)
+            updateStats("gold")
         elseif farmType == "block" then
             blockFarmCycle(speed)
+            updateStats("block")
         end
         farmCounter = farmCounter + 1
         task.wait(2)
@@ -90,8 +128,27 @@ local function startFarm(type)
     if farmActive then return end
     farmActive = true
     farmType = type
+    if not sessionStartTime then
+        sessionStartTime = os.time()
+    end
     task.spawn(runFarm)
 end
+
+local function stopFarm()
+    farmActive = false
+end
+
+-- АВТО-РЕСТАРТ ПОСЛЕ СМЕРТИ
+plr.CharacterAdded:Connect(function()
+    if autoRestart and farmType then
+        task.wait(3)
+        if farmType == "gold" then
+            startFarm("gold")
+        elseif farmType == "block" then
+            startFarm("block")
+        end
+    end
+end)
 
 -- ========== НАСТРОЙКИ ==========
 -- FullBright
@@ -181,20 +238,33 @@ end
 farmWindow:Label("=== FARM CONTROL ===")
 
 farmWindow:Button("▶️ Start Gold Farm", function()
-    if farmActive then farmActive = false; task.wait(0.5) end
+    if farmActive then stopFarm(); task.wait(0.5) end
     startFarm("gold")
 end)
 
 farmWindow:Button("🧱 Start Block Farm", function()
-    if farmActive then farmActive = false; task.wait(0.5) end
+    if farmActive then stopFarm(); task.wait(0.5) end
     startFarm("block")
+end)
+
+farmWindow:Button("⏹️ Stop Farm", function()
+    stopFarm()
 end)
 
 farmWindow:Slider("Fly Speed", 100, 500, farmSpeed, function(value)
     farmSpeed = value
 end)
 
-farmWindow:Label("Farms Completed: " .. farmCounter)
+farmWindow:Toggle("🔄 Auto Restart after death", true, function(value)
+    autoRestart = value
+end)
+
+farmWindow:Label("=== STATISTICS ===")
+
+local goldLabel = farmWindow:Label("💰 Gold: 0")
+local goldPerHourLabel = farmWindow:Label("📈 Gold/h: 0")
+local cyclesLabel = farmWindow:Label("🔄 Cycles: 0")
+local timerLabel = farmWindow:Label("⏱️ Time: 00:00:00")
 
 farmWindow:Label(credits, Color3.fromRGB(127, 143, 166))
 
@@ -219,14 +289,19 @@ end)
 
 optWindow:Label(credits, Color3.fromRGB(127, 143, 166))
 
--- Обновление счётчика
+-- Обновление статистики
 task.spawn(function()
     while true do
-        for _, child in pairs(farmWindow:GetChildren()) do
-            if child:IsA("Label") and child.Text:match("Farms Completed") then
-                child.Text = "Farms Completed: " .. farmCounter
-            end
+        local elapsed = 0
+        if sessionStartTime then
+            elapsed = os.time() - sessionStartTime
         end
+        timerLabel.Text = "⏱️ Time: " .. formatTime(elapsed)
+        
+        goldLabel.Text = "💰 Gold: " .. goldCollected
+        goldPerHourLabel.Text = "📈 Gold/h: " .. goldPerHour
+        cyclesLabel.Text = "🔄 Cycles: " .. farmCounter
+        
         task.wait(1)
     end
 end)
