@@ -19,14 +19,11 @@ local farmCounter = 0
 local farmSpeed = 300
 local autoRestart = true
 
--- СТАТИСТИКА (ТОЧНЫЕ ЗНАЧЕНИЯ)
+-- СТАТИСТИКА
 local goldCollected = 0
-local blocksCollected = 0
-local goldPerCycle = 122  -- 122 золота за 1 цикл фарма
-local blocksPerCycle = 200  -- блоков за цикл (если нужно, измени)
+local goldPerCycle = 122
 local sessionStartTime = nil
 local goldPerHour = 0
-local blocksPerHour = 0
 
 -- ========== ФУНКЦИИ ФАРМА ==========
 local function flyTo(targetPos, speed)
@@ -83,30 +80,18 @@ local function blockFarmCycle(speed)
     return true
 end
 
-local function updateStats(cycleType)
+local function updateStats()
     local now = os.time()
     if not sessionStartTime then
         sessionStartTime = now
     end
     
-    if cycleType == "gold" then
-        goldCollected = goldCollected + goldPerCycle
-    elseif cycleType == "block" then
-        blocksCollected = blocksCollected + blocksPerCycle
-    end
+    goldCollected = goldCollected + goldPerCycle
     
     local elapsedHours = (now - sessionStartTime) / 3600
     if elapsedHours > 0 then
         goldPerHour = math.floor(goldCollected / elapsedHours)
-        blocksPerHour = math.floor(blocksCollected / elapsedHours)
     end
-end
-
-local function formatTime(seconds)
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = seconds % 60
-    return string.format("%02d:%02d:%02d", hours, minutes, secs)
 end
 
 local function runFarm()
@@ -114,10 +99,9 @@ local function runFarm()
         local speed = farmSpeed
         if farmType == "gold" then
             goldFarmCycle(speed)
-            updateStats("gold")
+            updateStats()
         elseif farmType == "block" then
             blockFarmCycle(speed)
-            updateStats("block")
         end
         farmCounter = farmCounter + 1
         task.wait(2)
@@ -237,17 +221,17 @@ end
 -- ========== FARM WINDOW ==========
 farmWindow:Label("=== FARM CONTROL ===")
 
-farmWindow:Button("▶️ Start Gold Farm", function()
+farmWindow:Button("Start Gold Farm", function()
     if farmActive then stopFarm(); task.wait(0.5) end
     startFarm("gold")
 end)
 
-farmWindow:Button("🧱 Start Block Farm", function()
+farmWindow:Button("Start Block Farm", function()
     if farmActive then stopFarm(); task.wait(0.5) end
     startFarm("block")
 end)
 
-farmWindow:Button("⏹️ Stop Farm", function()
+farmWindow:Button("Stop Farm", function()
     stopFarm()
 end)
 
@@ -255,56 +239,32 @@ farmWindow:Slider("Fly Speed", 100, 500, farmSpeed, function(value)
     farmSpeed = value
 end)
 
-farmWindow:Toggle("🔄 Auto Restart after death", true, function(value)
+farmWindow:Toggle("Auto Restart after death", true, function(value)
     autoRestart = value
 end)
-
-farmWindow:Label("=== STATISTICS ===")
-
-local goldLabel = farmWindow:Label("💰 Gold: 0")
-local goldPerHourLabel = farmWindow:Label("📈 Gold/h: 0")
-local cyclesLabel = farmWindow:Label("🔄 Cycles: 0")
-local timerLabel = farmWindow:Label("⏱️ Time: 00:00:00")
 
 farmWindow:Label(credits, Color3.fromRGB(127, 143, 166))
 
 -- ========== OPTIMIZATION WINDOW ==========
 optWindow:Label("=== OPTIMIZATION ===")
 
-optWindow:Toggle("🚀 Boost FPS", false, function(value)
+optWindow:Toggle("Boost FPS", false, function(value)
     setBoostFPS(value)
 end)
 
-optWindow:Toggle("☀️ FullBright", false, function(value)
+optWindow:Toggle("FullBright", false, function(value)
     setFullBright(value)
 end)
 
-optWindow:Toggle("🛡️ Anti-AFK", false, function(value)
+optWindow:Toggle("Anti-AFK", false, function(value)
     toggleAntiAFK(value)
 end)
 
-optWindow:Button("📊 FPS Counter", function()
+optWindow:Button("FPS Counter", function()
     loadFPS()
 end)
 
 optWindow:Label(credits, Color3.fromRGB(127, 143, 166))
-
--- Обновление статистики
-task.spawn(function()
-    while true do
-        local elapsed = 0
-        if sessionStartTime then
-            elapsed = os.time() - sessionStartTime
-        end
-        timerLabel.Text = "⏱️ Time: " .. formatTime(elapsed)
-        
-        goldLabel.Text = "💰 Gold: " .. goldCollected
-        goldPerHourLabel.Text = "📈 Gold/h: " .. goldPerHour
-        cyclesLabel.Text = "🔄 Cycles: " .. farmCounter
-        
-        task.wait(1)
-    end
-end)
 
 -- Горячая клавиша для скрытия UI (LeftControl)
 local uis = game:GetService("UserInputService")
