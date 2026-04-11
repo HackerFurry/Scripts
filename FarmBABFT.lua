@@ -10,6 +10,7 @@ local optWindow = library:Window("Optimization")
 local plr = game:GetService("Players").LocalPlayer
 local players = game:GetService("Players")
 local lighting = game:GetService("Lighting")
+local teleportService = game:GetService("TeleportService")
 local credits = "by @HackerFurry | t.me/HackerCoffee"
 
 -- ========== ПЕРЕМЕННЫЕ ==========
@@ -18,12 +19,6 @@ local farmType = nil
 local farmCounter = 0
 local farmSpeed = 300
 local autoRestart = true
-
--- СТАТИСТИКА
-local goldCollected = 0
-local goldPerCycle = 122
-local sessionStartTime = nil
-local goldPerHour = 0
 
 -- ========== ФУНКЦИИ ФАРМА ==========
 local function flyTo(targetPos, speed)
@@ -80,26 +75,11 @@ local function blockFarmCycle(speed)
     return true
 end
 
-local function updateStats()
-    local now = os.time()
-    if not sessionStartTime then
-        sessionStartTime = now
-    end
-    
-    goldCollected = goldCollected + goldPerCycle
-    
-    local elapsedHours = (now - sessionStartTime) / 3600
-    if elapsedHours > 0 then
-        goldPerHour = math.floor(goldCollected / elapsedHours)
-    end
-end
-
 local function runFarm()
     while farmActive do
         local speed = farmSpeed
         if farmType == "gold" then
             goldFarmCycle(speed)
-            updateStats()
         elseif farmType == "block" then
             blockFarmCycle(speed)
         end
@@ -112,9 +92,6 @@ local function startFarm(type)
     if farmActive then return end
     farmActive = true
     farmType = type
-    if not sessionStartTime then
-        sessionStartTime = os.time()
-    end
     task.spawn(runFarm)
 end
 
@@ -218,6 +195,12 @@ local function loadFPS()
     loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-FPS-Counter-V1dot6dot1-115754"))()
 end
 
+-- REJOIN
+local function rejoin()
+    local placeId = game.PlaceId
+    teleportService:Teleport(placeId, plr)
+end
+
 -- ========== FARM WINDOW ==========
 farmWindow:Label("=== FARM CONTROL ===")
 
@@ -262,6 +245,10 @@ end)
 
 optWindow:Button("FPS Counter", function()
     loadFPS()
+end)
+
+optWindow:Button("Rejoin", function()
+    rejoin()
 end)
 
 optWindow:Label(credits, Color3.fromRGB(127, 143, 166))
