@@ -1,0 +1,238 @@
+--[[
+  HF | FPS Control
+  by @HackerFurry
+]]
+
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/miroeramaa/TurtleLib/main/TurtleUiLib.lua"))()
+local mainWindow = library:Window("HF | FPS Control")
+local fakeWindow = library:Window("Fake")
+local settingsWindow = library:Window("Settings")
+
+local plr = game:GetService("Players").LocalPlayer
+local runService = game:GetService("RunService")
+local stats = game:GetService("Stats")
+local players = game:GetService("Players")
+local uis = game:GetService("UserInputService")
+local credits = "by @HackerFurry | t.me/HackerCoffee"
+
+-- ========== ПЕРЕМЕННЫЕ ==========
+local showOverlay = true
+local fakeFPSEnabled = false
+local fakePingEnabled = false
+local minFPS = 30
+local maxFPS = 700
+local fakePing = 50
+local currentFakeFPS = 60
+local currentFakePing = 50
+local lastUpdate = tick()
+local frameCount = 0
+local realFPS = 60
+local realPing = 0
+
+-- НАСТРОЙКИ ОВЕРЛЕЯ
+local overlayBgColor = Color3.fromRGB(20, 20, 30)
+local overlayBgTransparency = 0.3
+local overlayTextSize = 14
+local overlayPosition = UDim2.new(0, 10, 0, 10)
+
+-- ========== GUI ОВЕРЛЕЙ ==========
+local overlayGui = Instance.new("ScreenGui")
+overlayGui.Name = "FPSControlOverlay"
+overlayGui.ResetOnSpawn = false
+overlayGui.Parent = plr:WaitForChild("PlayerGui")
+
+local overlayFrame = Instance.new("Frame")
+overlayFrame.Size = UDim2.new(0, 250, 0, 35)
+overlayFrame.Position = overlayPosition
+overlayFrame.BackgroundColor3 = overlayBgColor
+overlayFrame.BackgroundTransparency = overlayBgTransparency
+overlayFrame.BorderSizePixel = 0
+overlayFrame.Active = true
+overlayFrame.Draggable = true
+overlayFrame.Parent = overlayGui
+
+local overlayCorner = Instance.new("UICorner")
+overlayCorner.CornerRadius = UDim.new(0, 6)
+overlayCorner.Parent = overlayFrame
+
+local fpsPingPlayersText = Instance.new("TextLabel")
+fpsPingPlayersText.Size = UDim2.new(1, -10, 1, 0)
+fpsPingPlayersText.Position = UDim2.new(0, 5, 0, 0)
+fpsPingPlayersText.BackgroundTransparency = 1
+fpsPingPlayersText.Text = "HF | FPS: 60 | Ping: 0ms | Players: 0"
+fpsPingPlayersText.TextColor3 = Color3.new(0, 1, 0)
+fpsPingPlayersText.Font = Enum.Font.SourceSansBold
+fpsPingPlayersText.TextSize = overlayTextSize
+fpsPingPlayersText.TextXAlignment = Enum.TextXAlignment.Center
+fpsPingPlayersText.Parent = overlayFrame
+
+-- ========== ФУНКЦИИ ==========
+local function getRealPing()
+    local ping = stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+    local pingNum = ping:match("%d+%.?%d*")
+    return tonumber(pingNum) or 0
+end
+
+local function getPlayerCount()
+    return #players:GetPlayers()
+end
+
+local function updateOverlay()
+    if not showOverlay then
+        overlayFrame.Visible = false
+        return
+    end
+    overlayFrame.Visible = true
+    
+    local displayFPS = realFPS
+    local displayPing = realPing
+    local playerCount = getPlayerCount()
+    
+    if fakeFPSEnabled then
+        displayFPS = currentFakeFPS
+    end
+    
+    if fakePingEnabled then
+        displayPing = currentFakePing
+    end
+    
+    if displayFPS >= 50 then
+        fpsPingPlayersText.TextColor3 = Color3.new(0, 1, 0)
+    elseif displayFPS >= 30 then
+        fpsPingPlayersText.TextColor3 = Color3.new(1, 0.8, 0)
+    else
+        fpsPingPlayersText.TextColor3 = Color3.new(1, 0, 0)
+    end
+    
+    fpsPingPlayersText.Text = "HF | FPS: " .. math.floor(displayFPS) .. " | Ping: " .. math.floor(displayPing) .. "ms | Players: " .. playerCount
+end
+
+-- Обновление реального FPS и Ping
+task.spawn(function()
+    while true do
+        frameCount = frameCount + 1
+        local now = tick()
+        if now - lastUpdate >= 1 then
+            realFPS = frameCount / (now - lastUpdate)
+            realPing = getRealPing()
+            frameCount = 0
+            lastUpdate = now
+            
+            if fakeFPSEnabled then
+                currentFakeFPS = math.random(minFPS, maxFPS)
+            end
+            if fakePingEnabled then
+                currentFakePing = math.random(fakePing - 10, fakePing + 10)
+                if currentFakePing < 0 then currentFakePing = 0 end
+            end
+            
+            updateOverlay()
+        end
+        task.wait()
+    end
+end)
+
+-- Применение настроек оверлея
+local function applyOverlaySettings()
+    overlayFrame.BackgroundColor3 = overlayBgColor
+    overlayFrame.BackgroundTransparency = overlayBgTransparency
+    overlayFrame.Position = overlayPosition
+    fpsPingPlayersText.TextSize = overlayTextSize
+end
+
+-- ========== ОСНОВНОЕ ОКНО (только Show Overlay) ==========
+mainWindow:Label("=== FPS & PING & PLAYERS OVERLAY ===")
+
+mainWindow:Toggle("Show Overlay", true, function(value)
+    showOverlay = value
+    updateOverlay()
+end)
+
+-- ========== ОКНО FAKE (FPS и Ping) ==========
+fakeWindow:Label("=== FAKE FPS ===")
+
+fakeWindow:Toggle("Fake FPS", false, function(value)
+    fakeFPSEnabled = value
+    if value then
+        currentFakeFPS = math.random(minFPS, maxFPS)
+    end
+end)
+
+fakeWindow:Slider("Min FPS", 10, 700, 30, function(value)
+    minFPS = value
+    if minFPS > maxFPS then
+        minFPS = maxFPS
+    end
+end)
+
+fakeWindow:Slider("Max FPS", 10, 700, 60, function(value)
+    maxFPS = value
+    if maxFPS < minFPS then
+        maxFPS = minFPS
+    end
+end)
+
+fakeWindow:Label("=== FAKE PING ===")
+
+fakeWindow:Toggle("Fake Ping", false, function(value)
+    fakePingEnabled = value
+    if value then
+        currentFakePing = math.random(fakePing - 10, fakePing + 10)
+    end
+end)
+
+fakeWindow:Slider("Fake Ping (ms)", 0, 100, 50, function(value)
+    fakePing = value
+end)
+
+-- ========== НАСТРОЙКИ ==========
+settingsWindow:Label("=== OVERLAY SETTINGS ===")
+
+settingsWindow:Label("Background Color")
+
+local colorNames = {"Black", "Dark Gray", "Gray", "White", "Reset"}
+local colorValues = {
+    Color3.new(0,0,0),
+    Color3.fromRGB(40,40,50),
+    Color3.fromRGB(80,80,80),
+    Color3.new(1,1,1),
+    Color3.fromRGB(20,20,30)
+}
+for i = 1, 5 do
+    local btn = settingsWindow:Button(colorNames[i], function()
+        overlayBgColor = colorValues[i]
+        applyOverlaySettings()
+    end)
+end
+
+settingsWindow:Slider("Background Transparency", 0, 1, 0.3, function(value)
+    overlayBgTransparency = value
+    applyOverlaySettings()
+end)
+
+settingsWindow:Slider("Text Size", 10, 30, 14, function(value)
+    overlayTextSize = value
+    applyOverlaySettings()
+end)
+
+settingsWindow:Label("")
+settingsWindow:Label("Drag the HF | FPS/Ping/Players box to move it")
+settingsWindow:Label("")
+
+settingsWindow:Label(credits, Color3.fromRGB(127, 143, 166))
+
+-- Горячая клавиша для скрытия UI (LeftControl)
+local uiVisible = true
+uis.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.LeftControl then
+        uiVisible = not uiVisible
+        if uiVisible then
+            library:Show()
+        else
+            library:Hide()
+        end
+    end
+end)
+
+print("HF | FPS Control loaded. Press LeftControl to hide UI.")
