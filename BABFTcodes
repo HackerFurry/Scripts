@@ -1,0 +1,56 @@
+--[[
+   Codes BABFT HF (упрощённая версия, без Open Code Menu)
+   by @HackerFurry
+]]
+
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/miroeramaa/TurtleLib/main/TurtleUiLib.lua"))()
+local window = library:Window("Codes BABFT HF")
+
+local codes = {
+    {code = "hi", reward = "5 Gold"},
+    {code = "Squid Army", reward = "22 Ice + 22 Gold"},
+    {code = "=D", reward = "5 Gold"},
+    {code = "=P", reward = "5 Gold"},
+    {code = "chillthrill709 was here", reward = "Firework"}
+}
+
+-- Копирование в буфер обмена
+local function copyToClipboard(text)
+    local clip = setclipboard or toclipboard or (syn and syn.set_clipboard) or (secure and secure.setclipboard)
+    if clip then
+        clip(text)
+        return true
+    end
+    return false
+end
+
+window:Label("=== BABFT Codes ===")
+window:Label("Click code to copy, then paste in game", Color3.fromRGB(200,200,200))
+
+for _, c in ipairs(codes) do
+    window:Button(string.format("%s [%s]", c.code, c.reward), function()
+        if copyToClipboard(c.code) then
+            print("Copied: " .. c.code)
+            local plr = game:GetService("Players").LocalPlayer
+            if plr.Character then
+                game:GetService("Chat"):Chat(plr.Character, "✅ Code copied: " .. c.code)
+            end
+        else
+            print("Copy not supported, please copy manually: " .. c.code)
+        end
+    end)
+end
+
+window:Label("")
+window:Label("by @HackerFurry | t.me/HackerCoffee", Color3.fromRGB(127, 143, 166))
+
+-- Горячая клавиша для скрытия/показа меню (LeftControl)
+local uis = game:GetService("UserInputService")
+uis.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.LeftControl then
+        library:Show()
+    end
+end)
+
+print("Codes BABFT HF loaded. Press LeftControl to show menu.")
