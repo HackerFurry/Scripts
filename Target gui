@@ -1,0 +1,315 @@
+--[[
+  Target GUI HF (с подсветкой цели + Aimbot)
+  by @HackerFurry
+]]
+
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/miroeramaa/TurtleLib/main/TurtleUiLib.lua"))()
+local mainWindow = library:Window("Target GUI HF", 190, 120, true)  -- увеличил высоту для новой кнопки
+
+local plr = game:GetService("Players").LocalPlayer
+local uis = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local camera = workspace.CurrentCamera
+local credits = "by @HackerFurry | t.me/HackerCoffee"
+
+-- ========== ПЕРЕМЕННЫЕ ==========
+local targetEnabled = false
+local targetRadius = 25
+local highlightEnabled = false
+local aimbotEnabled = false
+local currentTarget = nil
+local currentHighlight = nil
+local updateConnection = nil
+
+-- ========== СОЗДАНИЕ ГЛАВНОГО ОКНА ЦЕЛИ ==========
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TargetGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = plr:WaitForChild("PlayerGui")
+
+local targetFrame = Instance.new("Frame")
+targetFrame.Size = UDim2.new(0, 180, 0, 75)
+targetFrame.Position = UDim2.new(0.5, -90, 0.8, -37)
+targetFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+targetFrame.BackgroundTransparency = 0.15
+targetFrame.BorderSizePixel = 0
+targetFrame.Active = true
+targetFrame.Draggable = true
+targetFrame.Visible = false
+targetFrame.Parent = screenGui
+
+local targetCorner = Instance.new("UICorner")
+targetCorner.CornerRadius = UDim.new(0, 8)
+targetCorner.Parent = targetFrame
+
+-- Надпись HF справа вверху
+local hfLabel = Instance.new("TextLabel")
+hfLabel.Size = UDim2.new(0, 20, 0, 15)
+hfLabel.Position = UDim2.new(1, -25, 0, 3)
+hfLabel.BackgroundTransparency = 1
+hfLabel.Text = "HF"
+hfLabel.TextColor3 = Color3.new(1, 0.5, 0)
+hfLabel.Font = Enum.Font.SourceSansBold
+hfLabel.TextSize = 11
+hfLabel.TextXAlignment = Enum.TextXAlignment.Right
+hfLabel.Parent = targetFrame
+
+-- Аватар
+local avatarImage = Instance.new("ImageLabel")
+avatarImage.Size = UDim2.new(0, 40, 0, 40)
+avatarImage.Position = UDim2.new(0, 5, 0, 20)
+avatarImage.BackgroundTransparency = 1
+avatarImage.BorderSizePixel = 0
+avatarImage.Parent = targetFrame
+
+-- Никнейм
+local displayNameLabel = Instance.new("TextLabel")
+displayNameLabel.Size = UDim2.new(1, -55, 0, 18)
+displayNameLabel.Position = UDim2.new(0, 50, 0, 22)
+displayNameLabel.BackgroundTransparency = 1
+displayNameLabel.Text = ""
+displayNameLabel.TextColor3 = Color3.new(1, 1, 1)
+displayNameLabel.Font = Enum.Font.SourceSansBold
+displayNameLabel.TextSize = 13
+displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+displayNameLabel.Parent = targetFrame
+
+-- Имя пользователя
+local userNameLabel = Instance.new("TextLabel")
+userNameLabel.Size = UDim2.new(1, -55, 0, 14)
+userNameLabel.Position = UDim2.new(0, 50, 0, 40)
+userNameLabel.BackgroundTransparency = 1
+userNameLabel.Text = ""
+userNameLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+userNameLabel.Font = Enum.Font.SourceSans
+userNameLabel.TextSize = 10
+userNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+userNameLabel.Parent = targetFrame
+
+-- Текст процента здоровья
+local healthText = Instance.new("TextLabel")
+healthText.Size = UDim2.new(0, 35, 0, 14)
+healthText.Position = UDim2.new(1, -38, 0, 42)
+healthText.BackgroundTransparency = 1
+healthText.Text = "100%"
+healthText.TextColor3 = Color3.new(1, 1, 1)
+healthText.Font = Enum.Font.SourceSans
+healthText.TextSize = 10
+healthText.TextXAlignment = Enum.TextXAlignment.Right
+healthText.Parent = targetFrame
+
+-- Полоска здоровья
+local healthBarFrame = Instance.new("Frame")
+healthBarFrame.Size = UDim2.new(1, -55, 0, 6)
+healthBarFrame.Position = UDim2.new(0, 50, 0, 58)
+healthBarFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+healthBarFrame.BorderSizePixel = 0
+healthBarFrame.Parent = targetFrame
+
+local healthFill = Instance.new("Frame")
+healthFill.Size = UDim2.new(1, 0, 1, 0)
+healthFill.BackgroundColor3 = Color3.new(0, 1, 0)
+healthFill.BorderSizePixel = 0
+healthFill.Parent = healthBarFrame
+
+-- ========== ФУНКЦИИ ПОДСВЕТКИ (тёмно-синий) ==========
+local function applyHighlight(target)
+    if not highlightEnabled or not target then
+        if currentHighlight then
+            currentHighlight:Destroy()
+            currentHighlight = nil
+        end
+        return
+    end
+    
+    if target.Character then
+        if currentHighlight then currentHighlight:Destroy() end
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = Color3.new(0, 0, 0.5)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.new(1, 1, 1)
+        highlight.Parent = target.Character
+        currentHighlight = highlight
+    end
+end
+
+local function clearHighlight()
+    if currentHighlight then
+        currentHighlight:Destroy()
+        currentHighlight = nil
+    end
+end
+
+-- ========== ФУНКЦИИ АИМБОТА ==========
+local function aimAtTarget()
+    if not aimbotEnabled or not currentTarget or not currentTarget.Character then
+        return
+    end
+    
+    local targetChar = currentTarget.Character
+    local targetHead = targetChar:FindFirstChild("Head") or targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetHead then return end
+    
+    local cameraPos = camera.CFrame.Position
+    local targetPos = targetHead.Position
+    local newCFrame = CFrame.new(cameraPos, targetPos)
+    camera.CFrame = newCFrame
+end
+
+-- ========== ФУНКЦИИ ЦЕЛИ ==========
+local function getNearestPlayer()
+    local nearest = nil
+    local minDist = targetRadius
+    local char = plr.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    for _, other in ipairs(game:GetService("Players"):GetPlayers()) do
+        if other ~= plr and other.Character then
+            local otherRoot = other.Character:FindFirstChild("HumanoidRootPart")
+            if otherRoot then
+                local dist = (otherRoot.Position - root.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearest = other
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function updateHealthColor(percent)
+    if percent >= 0.7 then
+        healthFill.BackgroundColor3 = Color3.new(0, 0.5, 1)
+    elseif percent >= 0.4 then
+        healthFill.BackgroundColor3 = Color3.new(0.3, 0.7, 1)
+    elseif percent >= 0.2 then
+        healthFill.BackgroundColor3 = Color3.new(0.6, 0.9, 1)
+    else
+        healthFill.BackgroundColor3 = Color3.new(1, 1, 1)
+    end
+end
+
+local function updateTargetGUI()
+    if not targetEnabled then
+        targetFrame.Visible = false
+        clearHighlight()
+        return
+    end
+
+    local nearest = getNearestPlayer()
+    currentTarget = nearest
+
+    if not nearest or not nearest.Character then
+        targetFrame.Visible = false
+        clearHighlight()
+        return
+    end
+
+    local humanoid = nearest.Character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        targetFrame.Visible = false
+        clearHighlight()
+        return
+    end
+
+    targetFrame.Visible = true
+
+    displayNameLabel.Text = nearest.DisplayName
+    userNameLabel.Text = "@" .. nearest.Name
+
+    local health = humanoid.Health
+    local maxHealth = humanoid.MaxHealth
+    local percent = health / maxHealth
+    healthFill.Size = UDim2.new(percent, 0, 1, 0)
+    updateHealthColor(percent)
+    healthText.Text = math.floor(percent * 100) .. "%"
+
+    local userId = nearest.UserId
+    avatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. userId .. "&w=150&h=150"
+
+    applyHighlight(nearest)
+end
+
+-- Отдельный поток для аимбота (чтобы не мешать обновлению GUI)
+local aimbotConnection = nil
+local function startAimbot()
+    if aimbotConnection then aimbotConnection:Disconnect() end
+    aimbotConnection = runService.RenderStepped:Connect(function()
+        if targetEnabled and aimbotEnabled and currentTarget then
+            aimAtTarget()
+        end
+    end)
+end
+
+local function stopAimbot()
+    if aimbotConnection then
+        aimbotConnection:Disconnect()
+        aimbotConnection = nil
+    end
+end
+
+-- ========== МЕНЮ НАСТРОЕК ==========
+mainWindow:Label("TG HF")
+
+mainWindow:Toggle("On", false, function(value)
+    targetEnabled = value
+    if not value then
+        targetFrame.Visible = false
+        clearHighlight()
+        if updateConnection then
+            updateConnection:Disconnect()
+            updateConnection = nil
+        end
+        stopAimbot()
+    else
+        if not updateConnection then
+            updateConnection = runService.RenderStepped:Connect(updateTargetGUI)
+        end
+        if aimbotEnabled then startAimbot() end
+    end
+end)
+
+mainWindow:Toggle("Highlight Target", false, function(value)
+    highlightEnabled = value
+    if not targetEnabled then return end
+    if value and currentTarget then
+        applyHighlight(currentTarget)
+    else
+        clearHighlight()
+    end
+end)
+
+mainWindow:Toggle("Aimbot (head)", false, function(value)
+    aimbotEnabled = value
+    if not targetEnabled then return end
+    if value then
+        startAimbot()
+    else
+        stopAimbot()
+    end
+end)
+
+mainWindow:Slider("Radius", 5, 50, targetRadius, function(value)
+    targetRadius = value
+end)
+
+mainWindow:Label("@HF", Color3.fromRGB(127, 143, 166))
+
+-- Горячая клавиша
+local uiVisible = true
+uis.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.LeftControl then
+        uiVisible = not uiVisible
+        if uiVisible then
+            library:Show()
+        else
+            library:Hide()
+        end
+    end
+end)
+
+print("Target GUI HF (с Aimbot) загружен. LeftControl для скрытия меню.")
