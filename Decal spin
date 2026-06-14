@@ -1,0 +1,46 @@
+-- ВРАЩАЮЩИЕСЯ ДЕКАЛИ СЛЕВА И СПРАВА (ID 14799621400)
+local decalId = "rbxassetid://14799621400"
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DecalsOnly"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("CoreGui")
+
+-- ЛЕВАЯ ДЕКАЛЬ
+local leftDecal = Instance.new("ImageLabel")
+leftDecal.Size = UDim2.new(0, 150, 0, 150)
+leftDecal.Position = UDim2.new(0, 10, 0.5, -75)
+leftDecal.BackgroundTransparency = 1
+leftDecal.Image = decalId
+leftDecal.Parent = screenGui
+
+-- ПРАВАЯ ДЕКАЛЬ
+local rightDecal = Instance.new("ImageLabel")
+rightDecal.Size = UDim2.new(0, 150, 0, 150)
+rightDecal.Position = UDim2.new(1, -160, 0.5, -75)
+rightDecal.BackgroundTransparency = 1
+rightDecal.Image = decalId
+rightDecal.Parent = screenGui
+
+-- ВРАЩЕНИЕ
+local rotationSpeed = 120
+local lastUpdate = tick()
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if not screenGui.Parent then return end
+    local now = tick()
+    local delta = math.min(0.1, now - lastUpdate)
+    lastUpdate = now
+    local angle = rotationSpeed * delta
+    leftDecal.Rotation = (leftDecal.Rotation + angle) % 360
+    rightDecal.Rotation = (rightDecal.Rotation + angle) % 360
+end)
+
+-- ОСТАНОВКА ПО END
+game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.End then
+        if screenGui and screenGui.Parent then screenGui:Destroy() end
+    end
+end)
+
+print("Декали 14799621400 крутятся слева и справа. Нажми End для удаления.")
