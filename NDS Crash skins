@@ -1,0 +1,277 @@
+-- ТЕЛЕПОРТ КАЖДЫЕ 0.05 СЕКУНДЫ В ТОЧКУ (-307, 179, 314)
+-- Остановка по клавише End
+
+local player = game.Players.LocalPlayer
+local targetPos = Vector3.new(-307, 179, 314)
+local running = true
+
+-- Ф
+local function teleport()
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health <= 0 then return end -- не телепортируем мёртвого
+    
+    hrp.CFrame = CFrame.new(targetPos)
+end
+
+-- СТОП МНЕ НЕ ПРИЯТНО по клавише End
+game:GetService("UserInputService").InputBegan:connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.End then
+        running = false
+        print("Телепорт остановлен")
+    end
+end)
+
+-- Основной цикл
+coroutine.wrap(function()
+    while running do
+        teleport()
+        task.wait(0.05)
+    end
+end)()
+
+print("Телепорт каждые 0.05 сек в точку (-307, 179, 314) запущен. Нажми End для остановки.")
+-- СУПЕР-БЫСТРЫЙ ИНЖЕКТ КЛИКЕРА КАЖДЫЕ 0.5 СЕКУНДЫ (с остановкой старого потока)
+
+local player = game.Players.LocalPlayer
+local currentTask = nil
+
+-- клик 
+local function runClickerWave()
+    -- нафиг окно покупки
+    local purchasePrompt = game:GetService("CoreGui"):FindFirstChild("PurchasePromptApp")
+    if purchasePrompt then purchasePrompt:Destroy() end
+    
+    -- выкинул звук
+    local mainGui = player.PlayerGui:FindFirstChild("MainGui")
+    if mainGui and mainGui:FindFirstChild("HoverSound") then
+        mainGui.HoverSound.Volume = 0
+    end
+    
+    -- тапапаем 20000 раз
+    local balloon = workspace:FindFirstChild("BillboardBalloon")
+    local apple = workspace:FindFirstChild("BillboardApple")
+    if not balloon or not apple then return end
+    
+    local det1 = balloon:FindFirstChild("Board") and balloon.Board:FindFirstChild("ClickDetector")
+    local det2 = apple:FindFirstChild("Board") and apple.Board:FindFirstChild("ClickDetector")
+    if not det1 or not det2 then return end
+    
+    for i = 1, 20000 do
+        fireclickdetector(det1)
+        fireclickdetector(det2)
+        if i % 30 == 1 then
+            task.wait()
+        end
+        -- поток выхад
+        if not currentTask or currentTask ~= coroutine.running() then
+            return
+        end
+    end
+end
+
+-- основная клика
+local stopFlag = false
+game:GetService("UserInputService").InputBegan:connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.End then
+        stopFlag = true
+        print("Кликер полностью остановлен")
+    end
+end)
+
+coroutine.wrap(function()
+    while not stopFlag do
+        -- Останавливаем предыдущую волну, если она ещё бежит
+        if currentTask and coroutine.status(currentTask) ~= "dead" then
+            -- Просто сбросим currentTask, старая волна сама выйдет на проверке
+            currentTask = nil
+        end
+        -- волна
+        currentTask = coroutine.create(runClickerWave)
+        coroutine.resume(currentTask)
+        -- ждемс 0.5 секунд
+        local start = tick()
+        while tick() - start < 0.5 and not stopFlag do
+            task.wait()
+        end
+    end
+end)()
+
+print("СУПЕР-КЛИКЕР ЗАПУЩЕН: новая волна каждые 0.5 сек. Нажми End для остановки.")
+
+-- АААААААААААА НЕЙРО СЛОП 67
+local decalId = "rbxassetid://14799621448"
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RotatingDecals"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("CoreGui")
+
+-- Левый ImageLabel
+local leftDecal = Instance.new("ImageLabel")
+leftDecal.Size = UDim2.new(0, 150, 0, 150)
+leftDecal.Position = UDim2.new(0, 10, 0.5, -75)
+leftDecal.BackgroundTransparency = 1
+leftDecal.Image = decalId
+leftDecal.Parent = screenGui
+
+-- Правый ImageLabel
+local rightDecal = Instance.new("ImageLabel")
+rightDecal.Size = UDim2.new(0, 150, 0, 150)
+rightDecal.Position = UDim2.new(1, -160, 0.5, -75)
+rightDecal.BackgroundTransparency = 1
+rightDecal.Image = decalId
+rightDecal.Parent = screenGui
+
+-- Таймер по центру
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(0, 200, 0, 50)
+timerLabel.Position = UDim2.new(0.5, -100, 0.5, -25) -- центрирование
+timerLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+timerLabel.BackgroundTransparency = 0.5
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.TextSize = 24
+timerLabel.Text = "05:00"
+timerLabel.TextScaled = false
+timerLabel.BorderSizePixel = 0
+timerLabel.Parent = screenGui
+
+-- Вращение
+local rotationSpeed = 120
+local lastUpdate = tick()
+game:GetService("RunService").RenderStepped:Connect(function()
+    local now = tick()
+    local delta = math.min(0.1, now - lastUpdate)
+    lastUpdate = now
+    local angle = rotationSpeed * delta
+    leftDecal.Rotation = (leftDecal.Rotation + angle) % 360
+    rightDecal.Rotation = (rightDecal.Rotation + angle) % 360
+end)
+
+-- Таймер 5 минут (300 секунд)
+local duration = 300 -- 5 минут = 300 секунд
+local startTime = tick()
+
+local function updateTimer()
+    local elapsed = tick() - startTime
+    local remaining = math.max(0, duration - elapsed)
+    local minutes = math.floor(remaining / 60)
+    local seconds = math.floor(remaining % 60)
+    timerLabel.Text = string.format("%02d:%02d", minutes, seconds)
+    if remaining <= 0 then
+        screenGui:Destroy()
+    end
+end
+
+-- Обновление каждую секунду
+spawn(function()
+    while screenGui and screenGui.Parent do
+        updateTimer()
+        task.wait(1)
+    end
+end)
+
+-- Отключение по клавише End (дополнительно)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.End then
+        screenGui:Destroy()
+        print("Декали и таймер удалены досрочно")
+    end
+end)
+
+print("Декали кружатся, таймер 5 минут по центру. Через 5 минут GUI удалится. End - досрочно.")
+-- аааааааааааааааааааа 2 нейрослоп 67
+local decalId = "rbxassetid://14799621448"
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RotatingDecals"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("CoreGui")
+
+-- Левый ImageLabel
+local leftDecal = Instance.new("ImageLabel")
+leftDecal.Size = UDim2.new(0, 150, 0, 150)
+leftDecal.Position = UDim2.new(0, 10, 0.5, -75)
+leftDecal.BackgroundTransparency = 1
+leftDecal.Image = decalId
+leftDecal.Parent = screenGui
+
+-- Правый ImageLabel
+local rightDecal = Instance.new("ImageLabel")
+rightDecal.Size = UDim2.new(0, 150, 0, 150)
+rightDecal.Position = UDim2.new(1, -160, 0.5, -75)
+rightDecal.BackgroundTransparency = 1
+rightDecal.Image = decalId
+rightDecal.Parent = screenGui
+
+-- ТАЙМЕР ПОСЕРЕДИНЕ (5 минут = 300 секунд)
+local timerFrame = Instance.new("Frame")
+timerFrame.Size = UDim2.new(0, 200, 0, 60)
+timerFrame.Position = UDim2.new(0.5, -100, 0.5, -30)
+timerFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+timerFrame.BackgroundTransparency = 0.5
+timerFrame.BorderSizePixel = 0
+timerFrame.Parent = screenGui
+
+local timerCorner = Instance.new("UICorner")
+timerCorner.CornerRadius = UDim.new(0, 10)
+timerCorner.Parent = timerFrame
+
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(1, 0, 1, 0)
+timerLabel.BackgroundTransparency = 1
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.TextSize = 30
+timerLabel.Text = "05:00"
+timerLabel.Parent = timerFrame
+
+-- Анимация вращения
+local rotationSpeed = 120
+local lastUpdate = tick()
+
+-- Таймер: 300 секунд (5 минут)
+local remainingTime = 300 -- 5 минут в секундах
+
+-- Обновление таймера каждую секунду
+coroutine.wrap(function()
+    while remainingTime > 0 and screenGui.Parent do
+        task.wait(1)
+        remainingTime = remainingTime - 1
+        local minutes = math.floor(remainingTime / 60)
+        local seconds = remainingTime % 60
+        timerLabel.Text = string.format("%02d:%02d", minutes, seconds)
+    end
+    -- Время вышло — удаляем GUI
+    if screenGui and screenGui.Parent then
+        screenGui:Destroy()
+    end
+end)()
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if not screenGui.Parent then return end
+    local now = tick()
+    local delta = math.min(0.1, now - lastUpdate)
+    lastUpdate = now
+    local angle = rotationSpeed * delta
+    leftDecal.Rotation = (leftDecal.Rotation + angle) % 360
+    rightDecal.Rotation = (rightDecal.Rotation + angle) % 360
+end)
+
+-- Ручное удаление по клавише End (досрочно)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.End then
+        if screenGui and screenGui.Parent then
+            screenGui:Destroy()
+            print("Декали и таймер удалены досрочно")
+        end
+    end
+end)
+
+print("Декали кружатся слева и справа. Таймер 5 минут по центру. Через 5 минут GUI удалится. Нажми End для досрочного удаления.")
