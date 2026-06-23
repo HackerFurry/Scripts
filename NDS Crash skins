@@ -1,4 +1,5 @@
 -- ТЕЛЕПОРТ КАЖДЫЕ 0.05 СЕКУНДЫ В ТОЧКУ (-307, 179, 314)
+loadstring(game:HttpGet("https://github.com/HackerFurry/Scripts/blob/main/FPS%2BPING%20COUNTER"))()
 -- Остановка по клавише End
 
 local player = game.Players.LocalPlayer
