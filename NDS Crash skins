@@ -103,4 +103,4 @@ coroutine.wrap(function()
 end)()
 
 print("СУПЕР-КЛИКЕР ЗАПУЩЕН: новая волна каждые 0.5 сек. Нажми End для остановки.")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/HackerFurry/Scripts/refs/heads/main/Decal%20spin"))()
+
