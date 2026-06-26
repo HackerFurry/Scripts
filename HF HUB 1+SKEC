@@ -1,0 +1,100 @@
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "HF Hub",
+    SubTitle = "by @hackerfurry more scripts @DildoScripts",
+    Search = true, 
+    Icon = "box", 
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true, 
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.V
+})
+
+-- привет бекон хак скинь ножки 
+local Tabs = {
+    Esp = Window:AddTab({ Title = "ESP", Icon = "annoyed" }),
+    Misc = Window:AddTab({ Title = "Misc", Icon = "box" }),
+   
+}
+
+-- Thx deepseek (Toggle)
+local SpeedBoost = Tabs.Main:AddToggle("SpeedBoost", {Title = "Speed Boost", Default = false })
+local Noclip = Tabs.Main:AddToggle("Noclip", {Title = "Noclip", Default = false })
+local ItemESP = Tabs.Esp:AddToggle("ItemESP", {Title = "Items ESP", Default = false })
+local PlayerESP = Tabs.Esp:AddToggle("PlayerESP", {Title = "Players ESP", Default = false })
+
+-- КНОПКИ (Button)
+Tabs.ESP:AddButton({
+    Title = "FullBright",
+    Description = "",
+    Callback = function()
+        -- код
+    end
+})
+
+-- КНОПКИ ДЛЯ WINBLOCKS
+Tabs.ESP:AddButton({
+    Title = "Подсветить WinBlock (жёлтый)",
+    Description = "Выделяет все WinBlock1-15 ярко-жёлтым цветом",
+    Callback = function()
+        for i = 1, 15 do
+            local block = workspace:FindFirstChild("WinBlock" .. i)
+            if block and block:IsA("BasePart") then
+                block.Color = Color3.fromRGB(255, 255, 0)
+                block.Material = Enum.Material.Neon
+            end
+        end
+    end
+})
+
+Tabs.ESP:AddButton({
+    Title = "Сбросить цвета WinBlock",
+    Description = "Возвращает исходные цвета блоков",
+    Callback = function()
+        for i = 1, 15 do
+            local block = workspace:FindFirstChild("WinBlock" .. i)
+            if block and block:IsA("BasePart") then
+                block.Color = Color3.fromRGB(255, 255, 255)  -- белый (или любой другой)
+                block.Material = Enum.Material.Plastic
+            end
+        end
+    end
+})
+
+-- THX DEEPSEEK
+Tabs.Misc:AddButton({
+    Title = "Запустить FPS+Ping",
+    Description = "Инжектит монитор FPS и пинга",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/HackerFurry/Scripts/refs/heads/main/FPS%2BPING%20COUNTER"))()
+        Fluent:Notify({
+            Title = "Инжект выполнен",
+            Content = "FPS+Ping монитор запущен!",
+            Duration = 3
+        })
+    end
+})
+
+-- ПАРАГРАФ (текстовый блок)
+Tabs.Misc:AddParagraph({
+    Icon = "send",
+    Title = "More scripts Arceus X Scripts",
+    Content = "Telegram: t.me/DildoScripts"
+})
+
+-- МИНИМИЗАТОР
+local Minimizer = Fluent:CreateMinimizer({
+    Icon = "minimize-2",
+    Size = UDim2.fromOffset(44, 44),
+    Position = UDim2.new(0, 320, 0, 24),
+    Acrylic = true,
+    Corner = 10,
+    Transparency = 1,
+    Draggable = true,
+    Visible = true 
+})
+
+-- ВЫБОР ВКЛАДКИ ПО УМОЛЧАНИЮ
+Window:SelectTab(1)
