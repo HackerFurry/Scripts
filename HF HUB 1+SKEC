@@ -1,7 +1,7 @@
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "HF Hub 1.02w",
+    Title = "HF Hub 1.02m",
     SubTitle = "by @hackerfurry | more scripts @DildoScripts",
     Search = true, 
     Icon = "box", 
