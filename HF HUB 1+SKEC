@@ -360,6 +360,22 @@ Tabs.Misc:AddButton({
     end
 })
 
+-- ========== FOV СЛАЙДЕР ==========
+local FOVSlider = Tabs.Misc:AddSlider("FOV", {
+    Title = "Field of View (FOV)",
+    Description = "Измени угол обзора камеры (70-120)",
+    Default = 70,
+    Min = 70,
+    Max = 120,
+    Rounding = 1,
+    Callback = function(value)
+        local cam = game:GetService("Workspace").CurrentCamera
+        if cam then
+            cam.FieldOfView = value
+        end
+    end
+})
+
 local infJumpConn = nil
 local infJumpDebounce = false
 
