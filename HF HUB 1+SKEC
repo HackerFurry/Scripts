@@ -1,8 +1,8 @@
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "HF Hub",
-    SubTitle = "by @hackerfurry more scripts @DildoScripts",
+    Title = "HF Hub 1.02w",
+    SubTitle = "by @hackerfurry | more scripts @DildoScripts",
     Search = true, 
     Icon = "box", 
     TabWidth = 160,
@@ -12,58 +12,328 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.V
 })
 
--- привет бекон хак скинь ножки 
 local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
     Esp = Window:AddTab({ Title = "ESP", Icon = "annoyed" }),
-    Misc = Window:AddTab({ Title = "Misc", Icon = "box" }),
-   
+    Misc = Window:AddTab({ Title = "Misc", Icon = "box" })
 }
 
--- Thx deepseek (Toggle)
-local SpeedBoost = Tabs.Main:AddToggle("SpeedBoost", {Title = "Speed Boost", Default = false })
-local Noclip = Tabs.Main:AddToggle("Noclip", {Title = "Noclip", Default = false })
-local ItemESP = Tabs.Esp:AddToggle("ItemESP", {Title = "Items ESP", Default = false })
-local PlayerESP = Tabs.Esp:AddToggle("PlayerESP", {Title = "Players ESP", Default = false })
+local Options = Fluent.Options
 
--- КНОПКИ (Button)
-Tabs.ESP:AddButton({
+-- ========== СИСТЕМА ESP ==========
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local espObjects = {
+    Players = {},
+    WinBlocks = {},
+    Killers = {}
+}
+
+local rainbowEnabled = false
+local rainbowHue = 0
+local hideNames = false
+
+-- Функция создания ESP
+local function createESP(adornee, text, color, folderName)
+    if not adornee or not adornee.Parent then return nil end
+
+    local oldFolder = adornee:FindFirstChild(folderName)
+    if oldFolder then oldFolder:Destroy() end
+
+    local folder = Instance.new("Folder")
+    folder.Name = folderName
+    folder.Parent = adornee
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Highlight"
+    highlight.FillColor = color or Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Parent = folder
+    highlight.Adornee = adornee
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "Billboard"
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = folder
+    billboard.Adornee = adornee
+    billboard.Enabled = not hideNames
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextStrokeTransparency = 0
+    label.Text = text or "ESP"
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+    label.Parent = billboard
+
+    return folder
+end
+
+-- Обновление радуги
+local function updateRainbow()
+    if not rainbowEnabled then return end
+    rainbowHue = (rainbowHue + 0.005) % 1
+    local color = Color3.fromHSV(rainbowHue, 1, 1)
+
+    for _, folder in pairs(espObjects.Players) do
+        local h = folder:FindFirstChild("Highlight")
+        if h then h.FillColor = color end
+    end
+    for _, folder in pairs(espObjects.WinBlocks) do
+        local h = folder:FindFirstChild("Highlight")
+        if h then h.FillColor = color end
+    end
+    for _, folder in pairs(espObjects.Killers) do
+        local h = folder:FindFirstChild("Highlight")
+        if h then h.FillColor = color end
+    end
+end
+
+-- Применение скрытия никнеймов
+local function applyHideNames()
+    for _, folder in pairs(espObjects.Players) do
+        local bill = folder:FindFirstChild("Billboard")
+        if bill then bill.Enabled = not hideNames end
+    end
+    for _, folder in pairs(espObjects.WinBlocks) do
+        local bill = folder:FindFirstChild("Billboard")
+        if bill then bill.Enabled = not hideNames end
+    end
+    for _, folder in pairs(espObjects.Killers) do
+        local bill = folder:FindFirstChild("Billboard")
+        if bill then bill.Enabled = not hideNames end
+    end
+end
+
+-- === ESP ДЛЯ ИГРОКОВ ===
+local function updatePlayerESP()
+    local enabled = Options.PlayerESP.Value
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        local char = player.Character
+        if not char then continue end
+
+        if enabled then
+            local hp = char:FindFirstChildWhichIsA("Humanoid") and math.floor(char.Humanoid.Health) or 0
+            local folder = createESP(char, player.Name .. " | HP: " .. hp, Color3.fromRGB(0, 255, 0), "PlayerESP_Folder")
+            if folder then espObjects.Players[player] = folder end
+        else
+            local folder = char:FindFirstChild("PlayerESP_Folder")
+            if folder then folder:Destroy() end
+            espObjects.Players[player] = nil
+        end
+    end
+end
+
+-- === ESP ДЛЯ WINBLOCK ===
+local function updateWinESP()
+    local enabled = Options.WinESP.Value
+    local allBlocks = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and string.find(obj.Name, "WinBlock") then
+            table.insert(allBlocks, obj)
+        end
+    end
+
+    for block, folder in pairs(espObjects.WinBlocks) do
+        if not block.Parent or not enabled then
+            if folder then folder:Destroy() end
+            espObjects.WinBlocks[block] = nil
+        end
+    end
+
+    if enabled then
+        for _, block in pairs(allBlocks) do
+            if not espObjects.WinBlocks[block] then
+                local folder = createESP(block, block.Name, Color3.fromRGB(255, 255, 0), "WinESP_Folder")
+                if folder then espObjects.WinBlocks[block] = folder end
+            end
+        end
+    else
+        for block, folder in pairs(espObjects.WinBlocks) do
+            if folder then folder:Destroy() end
+            espObjects.WinBlocks[block] = nil
+        end
+    end
+end
+
+-- === ESP ДЛЯ KILLER (KillBall, Ballerina, Tsunami, WallR, WallL) ===
+local function updateKillerESP()
+    local enabled = Options.KillerESP.Value
+
+    local targets = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local name = obj.Name
+            if name == "KillBall" or 
+               name == "BallerinaChocolita" or 
+               name == "Ballerina Chocolita" or
+               string.find(string.lower(name), "tsunami") or
+               name == "WallR" or name == "WallL" then
+                table.insert(targets, obj)
+            end
+        end
+    end
+
+    for obj, folder in pairs(espObjects.Killers) do
+        if not obj.Parent or not enabled then
+            if folder then folder:Destroy() end
+            espObjects.Killers[obj] = nil
+        end
+    end
+
+    if enabled then
+        for _, obj in pairs(targets) do
+            if not espObjects.Killers[obj] then
+                local folder = createESP(obj, obj.Name, Color3.fromRGB(255, 0, 0), "KillerESP_Folder")
+                if folder then espObjects.Killers[obj] = folder end
+            end
+        end
+    else
+        for obj, folder in pairs(espObjects.Killers) do
+            if folder then folder:Destroy() end
+            espObjects.Killers[obj] = nil
+        end
+    end
+end
+
+-- Обновление всех ESP
+local function refreshAllESP()
+    updatePlayerESP()
+    updateWinESP()
+    updateKillerESP()
+    applyHideNames()
+end
+
+-- Подписка на новые объекты
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("BasePart") then
+        local name = obj.Name
+        if string.find(name, "WinBlock") and Options.WinESP.Value then
+            local folder = createESP(obj, obj.Name, Color3.fromRGB(255, 255, 0), "WinESP_Folder")
+            if folder then espObjects.WinBlocks[obj] = folder end
+        elseif name == "KillBall" or 
+               name == "BallerinaChocolita" or 
+               name == "Ballerina Chocolita" or
+               string.find(string.lower(name), "tsunami") or
+               name == "WallR" or name == "WallL" then
+            if Options.KillerESP.Value then
+                local folder = createESP(obj, obj.Name, Color3.fromRGB(255, 0, 0), "KillerESP_Folder")
+                if folder then espObjects.Killers[obj] = folder end
+            end
+        end
+    end
+end)
+
+-- Подписка на новых игроков
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(char)
+        if Options.PlayerESP.Value then
+            task.wait(0.5)
+            local hp = char:FindFirstChildWhichIsA("Humanoid") and math.floor(char.Humanoid.Health) or 0
+            local folder = createESP(char, player.Name .. " | HP: " .. hp, Color3.fromRGB(0, 255, 0), "PlayerESP_Folder")
+            if folder then espObjects.Players[player] = folder end
+        end
+    end)
+end)
+
+-- Радужный цикл
+RunService.RenderStepped:Connect(function()
+    if rainbowEnabled then
+        updateRainbow()
+    end
+end)
+
+-- ========== GUI ЭЛЕМЕНТЫ ==========
+
+-- Вкладка ESP
+local PlayerESP = Tabs.Esp:AddToggle("PlayerESP", {Title = "Player ESP", Default = false })
+local WinESP = Tabs.Esp:AddToggle("WinESP", {Title = "Win ESP (WinBlock1-15)", Default = false })
+local KillerESP = Tabs.Esp:AddToggle("KillerESP", {Title = "Killer ESP (включая Tsunami, WallR, WallL)", Default = false })
+local RainbowToggle = Tabs.Esp:AddToggle("RainbowESP", {Title = "Rainbow Mode", Default = false })
+local HideNamesToggle = Tabs.Esp:AddToggle("HideNames", {Title = "Hide Names (Billboard)", Default = false })
+
+PlayerESP:OnChanged(function()
+    refreshAllESP()
+end)
+
+WinESP:OnChanged(function()
+    refreshAllESP()
+end)
+
+KillerESP:OnChanged(function()
+    refreshAllESP()
+end)
+
+RainbowToggle:OnChanged(function()
+    rainbowEnabled = Options.RainbowESP.Value
+    if not rainbowEnabled then
+        refreshAllESP()
+    end
+end)
+
+HideNamesToggle:OnChanged(function()
+    hideNames = Options.HideNames.Value
+    applyHideNames()
+end)
+
+-- Кнопка FullBright
+Tabs.Esp:AddButton({
     Title = "FullBright",
-    Description = "",
+    Description = "Включает яркое освещение",
     Callback = function()
-        -- код
+        game:GetService("Lighting").Brightness = 2
+        game:GetService("Lighting").ClockTime = 14
+        game:GetService("Lighting").FogEnd = 100000
+        game:GetService("Lighting").GlobalShadows = false
+        game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(128, 128, 128)
     end
 })
 
--- КНОПКИ ДЛЯ WINBLOCKS
-Tabs.ESP:AddButton({
-    Title = "Подсветить WinBlock (жёлтый)",
-    Description = "Выделяет все WinBlock1-15 ярко-жёлтым цветом",
-    Callback = function()
-        for i = 1, 15 do
-            local block = workspace:FindFirstChild("WinBlock" .. i)
-            if block and block:IsA("BasePart") then
-                block.Color = Color3.fromRGB(255, 255, 0)
-                block.Material = Enum.Material.Neon
+-- ========== ВКЛАДКА MAIN (с Farm) ==========
+local farmRunning = false
+local farmTask = nil
+
+local FarmToggle = Tabs.Main:AddToggle("Farm", {Title = "Farm (TP loop)", Default = false})
+FarmToggle:OnChanged(function()
+    if Options.Farm.Value then
+        if farmTask then return end
+        farmRunning = true
+        farmTask = coroutine.wrap(function()
+            local points = {
+                Vector3.new(20.757463455200195, 9.353821754455566, 281.5045471191406),
+                Vector3.new(19.135568618774414, 9.25382137298584, 503.92425537109375),
+                Vector3.new(19.413375854492188, 11.129216194152832, -38.30839157104492)
+            }
+            while farmRunning do
+                for _, pos in ipairs(points) do
+                    if not farmRunning then break end
+                    local char = game.Players.LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = CFrame.new(pos)
+                    end
+                    task.wait(0.4)
+                end
             end
-        end
+        end)
+        farmTask()
+    else
+        farmRunning = false
+        farmTask = nil
     end
-})
+end)
 
-Tabs.ESP:AddButton({
-    Title = "Сбросить цвета WinBlock",
-    Description = "Возвращает исходные цвета блоков",
-    Callback = function()
-        for i = 1, 15 do
-            local block = workspace:FindFirstChild("WinBlock" .. i)
-            if block and block:IsA("BasePart") then
-                block.Color = Color3.fromRGB(255, 255, 255)  -- белый (или любой другой)
-                block.Material = Enum.Material.Plastic
-            end
-        end
-    end
-})
-
--- THX DEEPSEEK
+-- ========== ВКЛАДКА MISC ==========
 Tabs.Misc:AddButton({
     Title = "Запустить FPS+Ping",
     Description = "Инжектит монитор FPS и пинга",
@@ -77,14 +347,55 @@ Tabs.Misc:AddButton({
     end
 })
 
--- ПАРАГРАФ (текстовый блок)
-Tabs.Misc:AddParagraph({
+Tabs.Misc:AddButton({
+    Title = "Запустить infinite yidel",
+    Description = "Это похоже на админку",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/HackerFurry/Scripts/refs/heads/main/FPS%2BPING%20COUNTER"))()
+        Fluent:Notify({
+            Title = "Инжект выполнен",
+            Content = "Носладжайся инфините удел!",
+            Duration = 3
+        })
+    end
+})
+
+local infJumpConn = nil
+local infJumpDebounce = false
+
+local InfJumpToggle = Tabs.Misc:AddToggle("InfJump", {Title = "Infinity Jump", Default = false})
+InfJumpToggle:OnChanged(function()
+    if Options.InfJump.Value then
+        if infJumpConn then infJumpConn:Disconnect() end
+        infJumpDebounce = false
+        infJumpConn = game:GetService("UserInputService").JumpRequest:Connect(function()
+            if not infJumpDebounce then
+                infJumpDebounce = true
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChildWhichIsA("Humanoid")
+                if hum and hum.Health > 0 then
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+                task.wait()
+                infJumpDebounce = false
+            end
+        end)
+    else
+        if infJumpConn then
+            infJumpConn:Disconnect()
+            infJumpConn = nil
+        end
+        infJumpDebounce = false
+    end
+end)
+
+Tabs.Main:AddParagraph({
     Icon = "send",
     Title = "More scripts Arceus X Scripts",
     Content = "Telegram: t.me/DildoScripts"
 })
 
--- МИНИМИЗАТОР
+-- ========== МИНИМИЗАТОР ==========
 local Minimizer = Fluent:CreateMinimizer({
     Icon = "minimize-2",
     Size = UDim2.fromOffset(44, 44),
@@ -96,5 +407,4 @@ local Minimizer = Fluent:CreateMinimizer({
     Visible = true 
 })
 
--- ВЫБОР ВКЛАДКИ ПО УМОЛЧАНИЮ
 Window:SelectTab(1)
