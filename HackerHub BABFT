@@ -1,0 +1,341 @@
+-- ========== ЗАГРУЗКА БИБЛИОТЕКИ ==========
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
+
+-- ========== СОЗДАНИЕ ОКНА ==========
+local Window = Fluent:CreateWindow({
+    Title = "HackerHub BABFT",
+    SubTitle = "by @hackerfurry | t.me/DildoScripts",
+    Search = true,
+    Icon = "box",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.V
+})
+
+-- ========== ВКЛАДКИ ==========
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    Visual = Window:AddTab({ Title = "Visual", Icon = "eye" }),
+    Gold = Window:AddTab({ Title = "Gold", Icon = "dollar-sign" })
+}
+
+local Options = Fluent.Options
+
+-- ========== ПЕРЕМЕННЫЕ ==========
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Точки фарма (проверяем их существование)
+local function getCaveParts()
+    local stage1 = workspace:FindFirstChild("BoatStages") and workspace.BoatStages:FindFirstChild("NormalStages") and workspace.BoatStages.NormalStages:FindFirstChild("CaveStage1")
+    local stage10 = workspace:FindFirstChild("BoatStages") and workspace.BoatStages:FindFirstChild("NormalStages") and workspace.BoatStages.NormalStages:FindFirstChild("CaveStage10")
+    local part1 = stage1 and stage1:FindFirstChild("DarknessPart")
+    local part10 = stage10 and stage10:FindFirstChild("DarknessPart")
+    return part1, part10
+end
+
+-- Фарм-переменные
+local farmRunning = false
+local farmTask = nil
+local farmSpeed = 1.0  -- задержка в секундах между точками (по умолчанию 1 сек)
+
+-- ESP-переменные
+local espObjects = {}
+local espEnabled = false
+local espColor = Color3.fromRGB(255, 0, 0)  -- красный по умолчанию
+local rainbowMode = false
+local rainbowHue = 0
+
+-- Обновление списка золота
+local goldList = {}
+local goldUpdateTask = nil
+
+-- ========== ФУНКЦИЯ СОЗДАНИЯ ESP ==========
+local function createESP(adornee, text, color, folderName)
+    if not adornee or not adornee.Parent then return nil end
+
+    local oldFolder = adornee:FindFirstChild(folderName)
+    if oldFolder then oldFolder:Destroy() end
+
+    local folder = Instance.new("Folder")
+    folder.Name = folderName
+    folder.Parent = adornee
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Highlight"
+    highlight.FillColor = color or Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Parent = folder
+    highlight.Adornee = adornee
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "Billboard"
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = folder
+    billboard.Adornee = adornee
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextStrokeTransparency = 0
+    label.Text = text or "ESP"
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+    label.Parent = billboard
+
+    return folder
+end
+
+local function destroyESP(folderName)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj.Name == folderName then
+            obj:Destroy()
+        end
+    end
+end
+
+local function updateESP()
+    if espEnabled then
+        -- Подсвечиваем всех игроков (кроме себя)
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local char = player.Character
+                if not espObjects[player] then
+                    local folder = createESP(char, player.Name, espColor, "PlayerESP_Folder")
+                    if folder then espObjects[player] = folder end
+                else
+                    -- Обновляем цвет, если изменился
+                    local highlight = espObjects[player]:FindFirstChild("Highlight")
+                    if highlight then highlight.FillColor = espColor end
+                end
+            end
+        end
+    else
+        -- Удаляем все ESP
+        destroyESP("PlayerESP_Folder")
+        espObjects = {}
+    end
+end
+
+-- ========== ФАРМ ==========
+local function startFarm()
+    if farmRunning then return end
+    local part1, part10 = getCaveParts()
+    if not part1 or not part10 then
+        Fluent:Notify({
+            Title = "Ошибка",
+            Content = "Не найдены точки CaveStage1 или CaveStage10!",
+            Duration = 3
+        })
+        return
+    end
+
+    farmRunning = true
+    farmTask = coroutine.wrap(function()
+        while farmRunning do
+            -- Летим к первой точке
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = part1.CFrame + Vector3.new(0, 3, 0)
+            end
+            task.wait(farmSpeed)
+            if not farmRunning then break end
+
+            -- Летим ко второй точке
+            hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = part10.CFrame + Vector3.new(0, 3, 0)
+            end
+            task.wait(farmSpeed)
+        end
+    end)
+    farmTask()
+    Fluent:Notify({
+        Title = "Farm",
+        Content = "Фарм запущен!",
+        Duration = 2
+    })
+end
+
+local function stopFarm()
+    farmRunning = false
+    farmTask = nil
+    Fluent:Notify({
+        Title = "Farm",
+        Content = "Фарм остановлен.",
+        Duration = 2
+    })
+end
+
+-- ========== ОБНОВЛЕНИЕ ЗОЛОТА ==========
+local function updateGoldList()
+    local goldDisplay = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        local gold = player:FindFirstChild("Data") and player.Data:FindFirstChild("Gold")
+        local amount = gold and gold.Value or 0
+        table.insert(goldDisplay, player.Name .. " - " .. amount .. " Gold")
+    end
+    return table.concat(goldDisplay, "\n")
+end
+
+local function refreshGoldDisplay()
+    if goldList and goldList.TextLabel then
+        goldList.TextLabel.Text = updateGoldList()
+    end
+end
+
+-- ========== GUI ЭЛЕМЕНТЫ ==========
+
+-- ===== ВКЛАДКА MAIN =====
+-- Toggle Farm
+local FarmToggle = Tabs.Main:AddToggle("Farm", {Title = "Farm Gold (on/off)", Default = false})
+FarmToggle:OnChanged(function()
+    if Options.Farm.Value then
+        startFarm()
+    else
+        stopFarm()
+    end
+end)
+
+-- Slider Speed (задержка между точками)
+local SpeedSlider = Tabs.Main:AddSlider("Speed", {
+    Title = "Speed (delay between teleports)",
+    Description = "Меньше = быстрее",
+    Default = 1.0,
+    Min = 0.2,
+    Max = 3.0,
+    Rounding = 1,
+    Callback = function(value)
+        farmSpeed = value
+    end
+})
+
+-- ===== ВКЛАДКА VISUAL =====
+-- Toggle ESP
+local ESPToggle = Tabs.Visual:AddToggle("ESP", {Title = "ESP (players)", Default = false})
+ESPToggle:OnChanged(function()
+    espEnabled = Options.ESP.Value
+    if espEnabled then
+        updateESP()
+    else
+        destroyESP("PlayerESP_Folder")
+        espObjects = {}
+    end
+end)
+
+-- Слайдеры RGB для цвета
+local RedSlider = Tabs.Visual:AddSlider("Red", {
+    Title = "Red",
+    Description = "",
+    Default = 255,
+    Min = 0,
+    Max = 255,
+    Rounding = 0,
+    Callback = function(value)
+        local r = value / 255
+        local g = Options.Green.Value / 255
+        local b = Options.Blue.Value / 255
+        espColor = Color3.new(r, g, b)
+        if espEnabled then updateESP() end
+    end
+})
+
+local GreenSlider = Tabs.Visual:AddSlider("Green", {
+    Title = "Green",
+    Description = "",
+    Default = 0,
+    Min = 0,
+    Max = 255,
+    Rounding = 0,
+    Callback = function(value)
+        local r = Options.Red.Value / 255
+        local g = value / 255
+        local b = Options.Blue.Value / 255
+        espColor = Color3.new(r, g, b)
+        if espEnabled then updateESP() end
+    end
+})
+
+local BlueSlider = Tabs.Visual:AddSlider("Blue", {
+    Title = "Blue",
+    Description = "",
+    Default = 0,
+    Min = 0,
+    Max = 255,
+    Rounding = 0,
+    Callback = function(value)
+        local r = Options.Red.Value / 255
+        local g = Options.Green.Value / 255
+        local b = value / 255
+        espColor = Color3.new(r, g, b)
+        if espEnabled then updateESP() end
+    end
+})
+
+-- ===== ВКЛАДКА GOLD =====
+-- Текстовое поле для вывода золота
+local GoldParagraph = Tabs.Gold:AddParagraph({
+    Icon = "coins",
+    Title = "Gold of all players",
+    Content = "Обновляется каждую секунду..."
+})
+
+-- Сохраняем ссылку на TextLabel для обновления
+goldList = GoldParagraph
+
+-- Авто-обновление золота каждую секунду
+coroutine.wrap(function()
+    while true do
+        task.wait(1)
+        if goldList and goldList.TextLabel then
+            goldList.TextLabel.Text = updateGoldList()
+        end
+    end
+end)()
+
+-- Также обновляем при появлении новых игроков
+Players.PlayerAdded:Connect(function()
+    refreshGoldDisplay()
+end)
+Players.PlayerRemoving:Connect(function()
+    refreshGoldDisplay()
+end)
+
+-- ========== ОСТАНОВКА ФАРМА ПРИ ВЫХОДЕ ==========
+LocalPlayer.CharacterAdded:Connect(function()
+    if Options.Farm.Value then
+        -- Перезапускаем фарм после смерти/респавна
+        stopFarm()
+        task.wait(1)
+        startFarm()
+    end
+end)
+
+-- ========== МИНИМИЗАТОР ==========
+local Minimizer = Fluent:CreateMinimizer({
+    Icon = "minimize-2",
+    Size = UDim2.fromOffset(44, 44),
+    Position = UDim2.new(0, 320, 0, 24),
+    Acrylic = true,
+    Corner = 10,
+    Transparency = 1,
+    Draggable = true,
+    Visible = true
+})
+
+Window:SelectTab(1)
+
+-- Уведомление о загрузке
+Fluent:Notify({
+    Title = "BABFT Farm Hub",
+    Content = "Загружен! Приятной игры!",
+    Duration = 3
+})
